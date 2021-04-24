@@ -3,6 +3,8 @@ import json
 import configparser
 import logging
 from collections import namedtuple
+import datetime
+import pprint as pp
 
 import b2y_utilities
 
@@ -155,20 +157,24 @@ class YNAB_API(object):  # in progress (2)
             trans_dict = self.create_transaction(
                 account_id, t, budget_transactions
             )
-            budget_transactions.append(trans_dict)
+            date = datetime.date.fromisoformat(trans_dict["date"])
+            diff = (date - datetime.date.today()).total_seconds()
+            if diff >0 :
+                logging.info("Transaction is in the future:{}".format(trans_dict))
+            else:
+                budget_transactions.append(trans_dict)
 
         # send our data to API
         logging.info("Uploading transactions to YNAB...")
         url = "https://api.youneedabudget.com/v1/budgets/{}/transactions?access_token={}".format(budget_id,
                                                                                                  self.api_token)
-
+        print("Type:{}".format(type(budget_transactions)))
         post_data = {"transactions": budget_transactions}
-        import pprint as pp
-        logging.info("Post data: {}".format(pp.pformat(post_data)))
+        json_string = json.dumps(post_data)
+        logging.info("Post data: {}".format(json_string))
         post_response = requests.post(url, json=post_data)
-        logging.info("Got response={}".format(pp.pformat(post_response)))
-        if not post_response.ok:
-            self.process_api_response(json.loads(post_response.text)["error"])
+        logging.info("Got response={}".format(pp.pformat(post_response.json())))
+
 
     def list_transactions(self):
         transactions = self.api_read(True, "transactions")
